@@ -1,0 +1,7 @@
+{
+    "app_name": "NbgAlienDrop",
+    "port": 5000,
+    "api_key": "123456",
+    "clipboard_notifications": true,
+    "otp_notifications": true
+}
