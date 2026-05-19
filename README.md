@@ -162,6 +162,3 @@ The resulting binary will be available in `dist/`.
 ## License
 
 Released under the [MIT License](LICENSE).
-
----
-*Last verified: 2026-05-19 — Git push test ✅*
