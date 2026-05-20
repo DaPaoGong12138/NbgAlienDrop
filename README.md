@@ -162,3 +162,4 @@ The resulting binary will be available in `dist/`.
 ## License
 
 Released under the [MIT License](LICENSE).
+Ciallo～(∠・ω< )⌒★
