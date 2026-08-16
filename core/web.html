@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>PC Remote</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
+  --text: #e6edf3; --text2: #8b949e; --purple: #8b5cf6; --red: #f85149;
+  --green: #3fb950; --orange: #f59e0b; --blue: #3b82f6;
+}
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+body {
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg); color:var(--text); min-height:100vh;
+  display:flex; flex-direction:column; max-width:480px; margin:0 auto;
+  padding:16px 16px 30px;
+  -webkit-user-select:none; user-select:none;
+  touch-action:manipulation;
+}
+
+/* --- Key bar --- */
+.key-bar {
+  display:flex; align-items:center; gap:8px; margin-bottom:18px;
+}
+.key-bar input {
+  flex:1; padding:8px 12px; border-radius:8px; border:1px solid var(--border);
+  background:var(--surface2); color:var(--text); font-size:0.82em; outline:none;
+}
+.key-bar input:focus { border-color:var(--purple); }
+.key-bar .dot { width:10px; height:10px; border-radius:50%; background:var(--green); flex-shrink:0; }
+
+/* --- Header --- */
+.header {
+  text-align:center; margin-bottom:18px;
+}
+.header .icon { font-size:42px; }
+.header h1 {
+  font-size:1.1em; font-weight:700; margin-top:4px;
+  background:linear-gradient(135deg,#c4b5fd,#8b5cf6); -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent; background-clip:text;
+}
+.header .ip { font-size:0.72em; color:var(--text2); margin-top:2px; }
+
+/* --- Section label --- */
+.section-label {
+  font-size:0.7em; font-weight:600; color:var(--text2); text-transform:uppercase;
+  letter-spacing:0.8px; margin-bottom:10px; margin-top:4px;
+}
+
+/* --- Grid --- */
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+
+.btn {
+  position:relative; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:6px; width:100%; padding:20px 12px;
+  border:none; border-radius:14px; font-size:0.9em; font-weight:600; color:#fff;
+  cursor:pointer; transition:all .12s; overflow:hidden;
+}
+.btn::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.08),transparent 50%); pointer-events:none;
+}
+.btn:active { transform:scale(.94); filter:brightness(.85); }
+.btn .emoji { font-size:1.6em; line-height:1.2; }
+
+.btn-shutdown  { background:linear-gradient(135deg,#c0392b,#e74c3c); }
+.btn-cancel    { background:linear-gradient(135deg,#059669,#10b981); }
+.btn-shot      { background:linear-gradient(135deg,#0891b2,#06b6d4); grid-column:1/-1; }
+.btn-fastforward { background:linear-gradient(135deg,#0e7490,#06b6d4); grid-column:1/-1; }
+.btn-fastforward.active { background:linear-gradient(135deg,#dc2626,#ef4444); animation:pulse 1s infinite; }
+.btn-focus     { background:linear-gradient(135deg,#6d28d9,#8b5cf6); }
+
+/* --- Edge mini buttons (清屏/全屏/弹幕) --- */
+.edge-row { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; margin-bottom:16px; }
+.edge-btn {
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  padding:12px 8px; border:none; border-radius:12px; font-size:0.72em; font-weight:600;
+  color:var(--text); background:var(--surface2); cursor:pointer; transition:all .12s;
+}
+.edge-btn .emoji { font-size:1.4em; }
+.edge-btn:active { transform:scale(.92); background:var(--border); }
+
+/* --- D-pad (圆形方向键) --- */
+.dpad {
+  position:relative; width:280px; height:280px; margin:6px auto 18px;
+  border-radius:50%;
+  background:radial-gradient(circle at center, var(--surface2), var(--surface));
+  border:2px solid var(--border);
+  box-shadow:0 6px 20px rgba(0,0,0,.45), inset 0 2px 10px rgba(255,255,255,.03);
+}
+.dpad-btn {
+  position:absolute; width:74px; height:74px; border-radius:50%; border:none;
+  color:#fff; font-size:1.7em; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .1s, filter .1s;
+  touch-action:manipulation;
+}
+.dpad-btn:active { transform:scale(.88); filter:brightness(.85); }
+.dpad-up    { top:8px; left:50%; margin-left:-37px; background:linear-gradient(135deg,#2563eb,#3b82f6); }
+.dpad-down  { bottom:8px; left:50%; margin-left:-37px; background:linear-gradient(135deg,#d97706,#f59e0b); }
+.dpad-left  { left:8px; top:50%; margin-top:-37px; background:linear-gradient(135deg,#0e7490,#06b6d4); }
+.dpad-right { right:8px; top:50%; margin-top:-37px; background:linear-gradient(135deg,#0e7490,#06b6d4); }
+.dpad-center {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:110px; height:110px; border-radius:50%; border:none; cursor:pointer;
+  background:linear-gradient(135deg,#6d28d9,#8b5cf6); color:#fff;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  transition:transform .1s, filter .1s;
+  box-shadow:0 4px 12px rgba(139,92,246,.4);
+}
+.dpad-center:active { transform:translate(-50%,-50%) scale(.92); filter:brightness(.88); }
+.dpad-center .icon { font-size:2em; line-height:1; }
+.dpad-center .txt { font-size:0.6em; opacity:.9; }
+
+/* --- Volume rocker --- */
+.volume {
+  display:flex; align-items:center; justify-content:center; gap:14px;
+  background:var(--surface); border:1px solid var(--border); border-radius:26px;
+  padding:12px 18px;
+}
+.volume button {
+  width:64px; height:64px; border-radius:50%; border:none; cursor:pointer;
+  font-size:1.5em; color:#fff; display:flex; align-items:center; justify-content:center;
+  transition:transform .1s, filter .1s; touch-action:manipulation;
+}
+.volume button:active { transform:scale(.9); filter:brightness(.85); }
+.vol-down { background:linear-gradient(135deg,#334155,#475569); }
+.vol-mute { background:linear-gradient(135deg,#6b7280,#9ca3af); width:52px; height:52px; font-size:1.2em; }
+.vol-up   { background:linear-gradient(135deg,#334155,#475569); }
+
+/* --- Screenshot preview --- */
+.preview { margin-top:4px; margin-bottom:14px; }
+.preview img {
+  width:100%; border-radius:12px; display:none; cursor:pointer;
+  border:1px solid var(--border);
+}
+
+/* --- Modal --- */
+.modal {
+  position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:100;
+  display:none; align-items:center; justify-content:center; cursor:zoom-out;
+}
+.modal img { max-width:100%; max-height:100%; }
+
+/* --- Window list modal --- */
+.win-modal {
+  position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100;
+  display:none; align-items:flex-end; justify-content:center;
+}
+.win-modal.active { display:flex; }
+.win-sheet {
+  width:100%; max-width:480px; max-height:70vh;
+  background:var(--surface); border-radius:20px 20px 0 0;
+  border:1px solid var(--border); overflow:hidden;
+  display:flex; flex-direction:column;
+}
+.win-sheet .head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; border-bottom:1px solid var(--border);
+}
+.win-sheet .head .t { font-size:0.95em; font-weight:600; }
+.win-sheet .head button {
+  background:transparent; border:none; color:var(--text2); font-size:0.85em; cursor:pointer;
+}
+.win-list { overflow-y:auto; flex:1; }
+.win-item {
+  padding:13px 18px; font-size:0.88em; border-bottom:1px solid var(--border);
+  cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.win-item:active { background:var(--surface2); }
+
+/* --- Toast --- */
+.toast {
+  position:fixed; left:50%; bottom:40px; transform:translateX(-50%) translateY(20px);
+  background:var(--green); color:#fff; padding:10px 20px; border-radius:10px;
+  font-size:0.85em; opacity:0; pointer-events:none; transition:all .25s; z-index:200;
+  max-width:85%; text-align:center;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* --- Login view --- */
+.login-view { display:none; flex-direction:column; align-items:center; justify-content:center;
+  flex:1; text-align:center; padding:40px 20px; min-height:80vh; }
+.login-view.active { display:flex; }
+.login-view .icon { font-size:56px; margin-bottom:12px; }
+.login-view h1 { font-size:1.3em; font-weight:700; margin-bottom:6px; }
+.login-view .sub { font-size:0.8em; color:var(--text2); margin-bottom:28px; word-break:break-all; }
+.login-view .err { font-size:0.78em; color:var(--red); margin-bottom:14px; display:none; padding:8px 16px;
+  background:rgba(248,81,73,.12); border-radius:8px; }
+.login-view input {
+  width:100%; padding:12px 16px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface2); color:var(--text); font-size:0.95em; outline:none;
+  text-align:center; margin-bottom:14px; max-width:300px;
+}
+.login-view input:focus { border-color:var(--purple); }
+.login-view button {
+  width:100%; padding:14px; border-radius:10px; border:none; max-width:300px;
+  background:linear-gradient(135deg,#8b5cf6,#6d28d9); color:#fff; font-size:1em;
+  font-weight:600; cursor:pointer; transition:all .12s;
+}
+.login-view button:active { transform:scale(.94); filter:brightness(.85); }
+.login-view button:disabled { opacity:0.5; cursor:default; transform:none; }
+
+@keyframes pulse { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.25)} }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN VIEW ============ -->
+<div id="loginView" class="login-view active">
+  <div class="icon">🔐</div>
+  <h1>PC Remote</h1>
+  <div class="sub" id="loginUrl">--</div>
+  <div class="err" id="loginErr"></div>
+  <input id="loginKeyInput" type="password" placeholder="API Key" value="123456">
+  <button id="loginBtn" onclick="tryManualAuth()">连接</button>
+</div>
+
+<!-- ============ MAIN VIEW ============ -->
+<div id="mainView" class="view" style="display:none">
+
+  <!-- Key bar -->
+  <div class="key-bar">
+    <div class="dot" id="statusDot"></div>
+    <input id="apiKeyInput" type="password" placeholder="API Key" value="123456">
+    <span style="font-size:0.7em;color:var(--text2)" id="ipAddr">--</span>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="icon">🖥️</div>
+    <h1>PC Remote</h1>
+    <div class="ip" id="connStatus">就绪</div>
+  </div>
+
+  <!-- Power -->
+  <div class="section-label">⚡ 电源</div>
+  <div class="grid">
+    <button class="btn btn-shutdown" onclick="doCmd('关机')"><span class="emoji">⏻</span>关机</button>
+    <button class="btn btn-cancel" onclick="doCmd('取消关机')"><span class="emoji">↩</span>取消</button>
+  </div>
+
+  <!-- Screenshot -->
+  <button class="btn btn-shot" onclick="takeShot()"><span class="emoji">📸</span>屏幕截图</button>
+  <div class="preview"><img id="previewImg" onclick="showFull(this.src)"></div>
+
+  <!-- D-pad 方向键 -->
+  <div class="section-label">🎮 遥控</div>
+  <div class="dpad">
+    <button class="dpad-btn dpad-up" id="btnUp">▲</button>
+    <button class="dpad-btn dpad-down" id="btnDown">▼</button>
+    <button class="dpad-btn dpad-left" id="btnLeft">◀</button>
+    <button class="dpad-btn dpad-right" id="btnRight">▶</button>
+    <button class="dpad-center" onclick="remote('key_space')">
+      <span class="icon">⏯</span><span class="txt">播放</span>
+    </button>
+  </div>
+
+  <!-- 快进（按住） -->
+  <button class="btn btn-fastforward" id="btnFastForward" onclick="toggleHold('right')">
+    <span class="emoji">⏩</span><span class="label">快进（按住）</span>
+  </button>
+
+  <!-- 窗口切换 -->
+  <div class="grid">
+    <button class="btn btn-focus" onclick="focusDouyin()"><span class="emoji">🎯</span>聚焦抖音</button>
+    <button class="btn btn-vol" onclick="remote('alt_tab')"><span class="emoji">🔀</span>切换窗口</button>
+  </div>
+
+  <!-- 边缘按钮：清屏 / 全屏 / 弹幕 / 收藏 -->
+  <div class="edge-row">
+    <button class="edge-btn" onclick="remote('key_j')"><span class="emoji">🧹</span>清屏</button>
+    <button class="edge-btn" onclick="remote('key_h')"><span class="emoji">⛶</span>全屏</button>
+    <button class="edge-btn" onclick="remote('key_b')"><span class="emoji">💬</span>弹幕</button>
+    <button class="edge-btn" onclick="remote('key_c')"><span class="emoji">⭐</span>收藏</button>
+  </div>
+
+  <!-- 音量 -->
+  <div class="section-label">🔊 音量</div>
+  <div class="volume">
+    <button class="vol-down" id="btnVolDown">−</button>
+    <button class="vol-mute" onclick="remote('vol_mute')">🔇</button>
+    <button class="vol-up" id="btnVolUp">＋</button>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal" id="imgModal" style="display:none" onclick="this.style.display='none'">
+  <img id="imgModalImg">
+</div>
+
+<!-- Window list modal -->
+<div class="win-modal" id="winModal" onclick="if(event.target===this)closeWinList()">
+  <div class="win-sheet">
+    <div class="head">
+      <span class="t">切换窗口</span>
+      <button onclick="closeWinList()">关闭</button>
+    </div>
+    <div class="win-list" id="winList"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== STATE =====
+var apiKey = localStorage.getItem('nbg_apikey') || '123456';
+document.getElementById('apiKeyInput').value = apiKey;
+document.getElementById('apiKeyInput').addEventListener('input', function(){
+  apiKey = this.value.trim() || '123456';
+  localStorage.setItem('nbg_apikey', apiKey);
+});
+document.getElementById('loginKeyInput').value = apiKey;
+document.getElementById('loginKeyInput').addEventListener('input', function(){
+  apiKey = this.value.trim() || '123456';
+  document.getElementById('apiKeyInput').value = apiKey;
+  localStorage.setItem('nbg_apikey', apiKey);
+});
+
+document.getElementById('ipAddr').textContent = location.hostname;
+document.getElementById('loginUrl').textContent = location.origin + '/web';
+
+// ===== API =====
+function api(path, body) {
+  return fetch(path, {method:'POST', headers:{'Content-Type':'application/json','X-API-KEY':apiKey}, body:JSON.stringify(body)})
+    .then(function(r){ return r.json(); })
+    .catch(function(e){ return {status:'error',message:'Network error:'+e}; });
+}
+
+// ===== AUTH =====
+function showLogin(errMsg) {
+  document.getElementById('loginView').classList.add('active');
+  document.getElementById('mainView').style.display = 'none';
+  document.getElementById('loginBtn').disabled = false;
+  if (errMsg) {
+    var el = document.getElementById('loginErr');
+    el.textContent = '❌ ' + errMsg;
+    el.style.display = 'block';
+  }
+}
+function showMain() {
+  document.getElementById('loginView').classList.remove('active');
+  document.getElementById('mainView').style.display = 'block';
+}
+function tryAuth(key) {
+  document.getElementById('loginBtn').disabled = true;
+  document.getElementById('loginErr').style.display = 'none';
+  return fetch('/auth/verify', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-API-KEY': key},
+    body: '{}'
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    if (d.status === 'ok') {
+      apiKey = key;
+      document.getElementById('apiKeyInput').value = key;
+      document.getElementById('loginKeyInput').value = key;
+      localStorage.setItem('nbg_apikey', key);
+      showMain();
+    } else {
+      var err = (d.message || '').toLowerCase();
+      if (err.indexOf('api key') >= 0 || err.indexOf('key') >= 0) showLogin('API Key 错误，请重新输入');
+      else showLogin(d.message || '连接失败');
+    }
+  })
+  .catch(function(){ showLogin('网络错误：无法连接服务器'); });
+}
+tryAuth(apiKey);
+function tryManualAuth() {
+  var key = document.getElementById('loginKeyInput').value.trim() || '123456';
+  tryAuth(key);
+}
+
+// ===== TOAST =====
+function toast(msg, err) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = err ? 'var(--red)' : 'var(--green)';
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.classList.remove('show'); }, 1500);
+}
+
+// ===== POWER =====
+function doCmd(cmd) {
+  toast('执行: '+cmd);
+  api('/command', {cmd:cmd}).then(function(r) {
+    if (r.status === 'ok') toast('已完成: '+cmd);
+    else toast(r.message, 1);
+  });
+}
+
+// ===== SCREENSHOT =====
+function takeShot() {
+  toast('截图中...');
+  api('/screenshot', {}).then(function(r) {
+    if (r.status === 'ok') {
+      var img = document.getElementById('previewImg');
+      img.src = r.image;
+      img.style.display = 'block';
+      toast('截图完成');
+    } else toast(r.message, 1);
+  });
+}
+function showFull(src) {
+  document.getElementById('imgModalImg').src = src;
+  document.getElementById('imgModal').style.display = 'flex';
+}
+
+// ===== REMOTE =====
+function remote(action) {
+  api('/remote', {action:action}).then(function(r) {
+    if (r.status !== 'ok') toast(r.message, 1);
+  });
+}
+
+// 聚焦抖音（带成功反馈提示）
+function focusDouyin() {
+  api('/remote', {action:'focus_douyin'}).then(function(r) {
+    if (r.status === 'ok') {
+      toast(r.target === 'douyin' ? '已聚焦抖音' : '已聚焦浏览器');
+    } else {
+      toast(r.message, 1);
+    }
+  });
+}
+
+// 窗口切换器（自定义列表，替代 Alt+Tab）
+function openWinList() {
+  api('/windows/list', {}).then(function(r) {
+    if (r.status !== 'ok') { toast(r.message, 1); return; }
+    var el = document.getElementById('winList');
+    if (!r.windows || !r.windows.length) {
+      el.innerHTML = '<div class="win-item" style="color:var(--text2)">没有窗口</div>';
+    } else {
+      el.innerHTML = r.windows.map(function(w) {
+        return '<div class="win-item" onclick="focusWin('+w.id+', this)">'+esc(w.title)+'</div>';
+      }).join('');
+    }
+    document.getElementById('winModal').classList.add('active');
+  });
+}
+function closeWinList() {
+  document.getElementById('winModal').classList.remove('active');
+}
+function focusWin(id, el) {
+  api('/windows/focus', {id:id}).then(function(r) {
+    if (r.status === 'ok') {
+      toast('已切换窗口');
+      closeWinList();
+    } else {
+      toast(r.message, 1);
+    }
+  });
+}
+
+// 切换保持类按钮（快进：按一次按住 →，再按一次松开）
+function toggleHold(key) {
+  api('/remote', {action:'toggle_hold', key:key}).then(function(r) {
+    if (r.status !== 'ok') { toast(r.message, 1); return; }
+    var btn = document.getElementById('btnFastForward');
+    var label = btn.querySelector('.label');
+    if (r.held) {
+      btn.classList.add('active');
+      label.textContent = '快进中（再按松开）';
+      toast('开始快进');
+    } else {
+      btn.classList.remove('active');
+      label.textContent = '快进（按住）';
+      toast('已松开');
+    }
+  });
+}
+
+// 长按连续触发（滚轮 / 音量）
+function holdButton(el, action, interval) {
+  var timer = null;
+  function start(e) {
+    e.preventDefault();
+    remote(action);
+    timer = setInterval(function(){ remote(action); }, interval || 260);
+  }
+  function stop() {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', stop);
+  el.addEventListener('pointercancel', stop);
+  el.addEventListener('pointerleave', stop);
+}
+
+holdButton(document.getElementById('btnUp'), 'scroll_up', 260);
+holdButton(document.getElementById('btnDown'), 'scroll_down', 260);
+holdButton(document.getElementById('btnVolUp'), 'vol_up', 200);
+holdButton(document.getElementById('btnVolDown'), 'vol_down', 200);
+
+// D-pad 左右 = 单次快退/前进
+document.getElementById('btnLeft').addEventListener('click', function(){ remote('arrow_left'); });
+document.getElementById('btnRight').addEventListener('click', function(){ remote('arrow_right'); });
+</script>
+</body>
+</html>
